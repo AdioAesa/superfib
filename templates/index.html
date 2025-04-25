@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUPERFIB LEVELS</title>
+    {{ bootstrap.load_css() }}
+    <style>
+        .container { max-width: 800px; }
+        .result-card { 
+            margin-top: 20px;
+            display: none;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .value-count-4-plus {
+            background-color: #C6EFCE;
+        }
+        .value-count-3 {
+            background-color: #FFC7CE;
+        }
+        .value-count-2 {
+            background-color: #FFFF00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">SUPERFIB LEVELS</h1>
+        
+        <div class="card">
+            <div class="card-body">
+                <form id="analyzeForm" class="mb-3">
+                    <div class="mb-3">
+                        <label for="ticker" class="form-label">Enter Ticker Symbol:</label>
+                        <input type="text" class="form-control" id="ticker" name="ticker" required 
+                               placeholder="e.g., AAPL, MSFT, SPY">
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="startDate" class="form-label">Start Date:</label>
+                            <input type="date" class="form-control" id="startDate" name="startDate" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="endDate" class="form-label">End Date:</label>
+                            <input type="date" class="form-control" id="endDate" name="endDate" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Analyze</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Analyzing ticker data...</p>
+        </div>
+
+        <div id="resultCard" class="card result-card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Results</h5>
+            </div>
+            <div class="card-body">
+                <div id="error" class="alert alert-danger" style="display: none;"></div>
+                <div id="results" class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Value</th>
+                                <th>Repetitions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{ bootstrap.load_js() }}
+    <script>
+        // Set default dates (last 12 months)
+        window.addEventListener('load', () => {
+            const today = new Date();
+            const lastYear = new Date();
+            lastYear.setFullYear(lastYear.getFullYear() - 1);
+            
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            document.getElementById('startDate').value = lastYear.toISOString().split('T')[0];
+        });
+
+        document.getElementById('analyzeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const ticker = document.getElementById('ticker').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const loading = document.getElementById('loading');
+            const resultCard = document.getElementById('resultCard');
+            const errorDiv = document.getElementById('error');
+            const resultsBody = document.getElementById('resultsBody');
+            
+            // Reset and show loading
+            errorDiv.style.display = 'none';
+            resultCard.style.display = 'none';
+            loading.style.display = 'block';
+            
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `ticker=${encodeURIComponent(ticker)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    errorDiv.textContent = data.error;
+                    errorDiv.style.display = 'block';
+                } else {
+                    resultsBody.innerHTML = '';
+                    data.repeated_values.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.className = item.count >= 4 ? 'value-count-4-plus' : 
+                                      item.count === 3 ? 'value-count-3' : 
+                                      'value-count-2';
+                        row.innerHTML = `                            <td>${item.value.toFixed(4)}</td>
+                            <td>${item.count}</td>
+                        `;
+                        resultsBody.appendChild(row);
+                    });
+                }
+            } catch (error) {
+                errorDiv.textContent = 'An error occurred while analyzing the data.';
+                errorDiv.style.display = 'block';
+            }
+            
+            // Hide loading and show results
+            loading.style.display = 'none';
+            resultCard.style.display = 'block';
+        });
+    </script>
+</body>
+</html>
