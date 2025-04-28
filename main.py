@@ -6,13 +6,14 @@ from dateutil.relativedelta import relativedelta
 from collections import Counter
 
 # --- 1. Configuration ---
-ticker = "TSLA"  # NQ Futures
-output_filename = f'{ticker}_fibonacci_levels_last_3_months_highlighted.xlsx'
+ticker = "NQ=F" # Example: "AAPL" for Apple, "ETH-USD" for Ethereum
+# Note: Ensure the ticker is valid for Yahoo Finance
+output_filename = f'{ticker}_fibonacci_levels.xlsx'
 num_decimals = 4
 
 # --- 2. Define Date Range (Last 3 Months) ---
 end_date = datetime.today()
-start_date = end_date - relativedelta(months=6)  # Adjusted to 18 months for more data
+start_date = end_date - relativedelta(months=12)  # Adjusted to 6 months for more data
 # Ensure the start date is a weekday (Monday to Friday)
 if start_date.weekday() >= 5:
     start_date += timedelta(days=(7 - start_date.weekday()))

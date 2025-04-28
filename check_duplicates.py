@@ -22,6 +22,24 @@ def find_repeated_values(df, filename, output_file):
         write_output(f"Analysis performed on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         write_output("=" * 50 + "\n")
 
+        # Check the date range in the dataframe
+        date_column = None
+        # Look for a date column (usually named 'Date')
+        for col in df.columns:
+            if col.lower() == 'date' or 'date' in str(col).lower():
+                date_column = col
+                break
+        
+        # Determine if dataset spans more than 3 months
+        skip_2x_values = False
+        if date_column and pd.api.types.is_datetime64_any_dtype(df[date_column]):
+            date_range = df[date_column].max() - df[date_column].min()
+            months = date_range.days / 30.44  # Average days per month
+            skip_2x_values = months > 3
+            write_output(f"Date range spans approximately {months:.1f} months")
+            if skip_2x_values:
+                write_output("Range exceeds 3 months - 2X repeated values will be excluded")
+        
         # Get numeric columns only
         numeric_df = df.select_dtypes(include=[np.number])
         
@@ -35,7 +53,13 @@ def find_repeated_values(df, filename, output_file):
         unique_values, counts = np.unique(all_values, return_counts=True)
         
         # Get repeated values (count > 1)
-        repeated_mask = counts > 1
+        if skip_2x_values:
+            # Only include values that appear 3 or more times
+            repeated_mask = counts > 2
+        else:
+            # Include all repeated values (appearing 2 or more times)
+            repeated_mask = counts > 1
+            
         repeated_values = unique_values[repeated_mask]
         repeated_counts = counts[repeated_mask]
         
@@ -72,7 +96,7 @@ try:
         exit(1)
 
     # Create the filename based on the ticker symbol
-    excel_filename = f'{ticker}_fibonacci_levels_last_3_months_highlighted.xlsx'
+    excel_filename = f'{ticker}_fibonacci_levels.xlsx'
     output_file = f"repeated_values_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
     
     try:
