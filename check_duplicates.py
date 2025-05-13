@@ -3,22 +3,32 @@ import numpy as np
 from datetime import datetime
 import re
 
-def get_ticker_from_main():
+def get_ticker_and_calctype_from_main():
+    ticker = None
+    calc_type = "daily"  # Default to daily if not found
+    
     with open('main.py', 'r') as file:
         content = file.read()
         # Find the line that defines the ticker
-        match = re.search(r'ticker\s*=\s*["\']([^"\']+)["\']', content)
-        if match:
-            return match.group(1)
-    return None
+        ticker_match = re.search(r'ticker\s*=\s*["\']([^"\']+)["\']', content)
+        if ticker_match:
+            ticker = ticker_match.group(1)
+        
+        # Find the calculation type
+        calc_match = re.search(r'calculation_type\s*=\s*["\']([^"\']+)["\']', content)
+        if calc_match:
+            calc_type = calc_match.group(1)
+    
+    return ticker, calc_type
 
-def find_repeated_values(df, filename, output_file):
+def find_repeated_values(df, filename, output_file, calc_type):
     with open(output_file, 'w') as f:
         def write_output(text):
             print(text)
             f.write(text + '\n')
 
         write_output(f"Repeated Values Analysis for {filename}")
+        write_output(f"Calculation Type: {calc_type}")
         write_output(f"Analysis performed on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         write_output("=" * 50 + "\n")
 
@@ -29,16 +39,20 @@ def find_repeated_values(df, filename, output_file):
             if col.lower() == 'date' or 'date' in str(col).lower():
                 date_column = col
                 break
-        
+                
         # Determine if dataset spans more than 3 months
         skip_2x_values = False
         if date_column and pd.api.types.is_datetime64_any_dtype(df[date_column]):
             date_range = df[date_column].max() - df[date_column].min()
             months = date_range.days / 30.44  # Average days per month
-            skip_2x_values = months > 3
+            # Skip 2X values only if: range > 3 months AND NOT weekly or monthly calculation
+            skip_2x_values = months > 3 and calc_type not in ["weekly", "monthly"]
             write_output(f"Date range spans approximately {months:.1f} months")
-            if skip_2x_values:
-                write_output("Range exceeds 3 months - 2X repeated values will be excluded")
+            if months > 3:
+                if skip_2x_values:
+                    write_output("Range exceeds 3 months - 2X repeated values will be excluded")
+                else:
+                    write_output(f"Range exceeds 3 months but '{calc_type}' calculation selected - including all repeated values")
         
         # Get numeric columns only
         numeric_df = df.select_dtypes(include=[np.number])
@@ -66,7 +80,8 @@ def find_repeated_values(df, filename, output_file):
         if len(repeated_values) > 0:
             write_output("Found the following repeated values:")
             write_output("-" * 50 + "\n")
-              # First sort by value (descending)
+            
+            # First sort by value (descending)
             value_sort_idx = np.argsort(-repeated_values)
             repeated_values = repeated_values[value_sort_idx]
             repeated_counts = repeated_counts[value_sort_idx]
@@ -89,19 +104,19 @@ def find_repeated_values(df, filename, output_file):
             write_output("No repeated values found in the dataset.")
 
 try:
-    # Get ticker symbol from main.py
-    ticker = get_ticker_from_main()
+    # Get ticker symbol and calculation type from main.py
+    ticker, calc_type = get_ticker_and_calctype_from_main()
     if ticker is None:
         print("Could not find ticker symbol in main.py")
         exit(1)
 
-    # Create the filename based on the ticker symbol
-    excel_filename = f'{ticker}_fibonacci_levels.xlsx'
+    # Create the filename based on the ticker symbol and calculation type
+    excel_filename = f'{ticker}_fibonacci_levels_{calc_type}.xlsx'
     output_file = f"repeated_values_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
     
     try:
         df = pd.read_excel(excel_filename)
-        find_repeated_values(df, excel_filename, output_file)
+        find_repeated_values(df, excel_filename, output_file, calc_type)
     except Exception as e:
         print(f"Error processing {excel_filename}: {e}")
         with open(output_file, 'a') as f:

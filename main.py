@@ -8,12 +8,26 @@ from collections import Counter
 # --- 1. Configuration ---
 ticker = "NQ=F" # Example: "AAPL" for Apple, "ETH-USD" for Ethereum
 # Note: Ensure the ticker is valid for Yahoo Finance
-output_filename = f'{ticker}_fibonacci_levels.xlsx'
+# output_filename = f'{ticker}_fibonacci_levels.xlsx' # Will be set based on calculation_type
 num_decimals = 4
+calculation_type = "monthly" # Options: "daily", "weekly", or "monthly". Change this to switch.
+
+if calculation_type == "daily":
+    output_filename = f'{ticker}_fibonacci_levels_daily.xlsx'
+    sheet_name_excel = 'Fibonacci Levels Daily'
+elif calculation_type == "weekly":
+    output_filename = f'{ticker}_fibonacci_levels_weekly.xlsx'
+    sheet_name_excel = 'Fibonacci Levels Weekly'
+elif calculation_type == "monthly":
+    output_filename = f'{ticker}_fibonacci_levels_monthly.xlsx'
+    sheet_name_excel = 'Fibonacci Levels Monthly'
+else:
+    print("Error: Invalid calculation_type. Choose 'daily', 'weekly', or 'monthly'.")
+    exit()
 
 # --- 2. Define Date Range (Last 3 Months) ---
 end_date = datetime.today()
-start_date = end_date - relativedelta(months=12)  # Adjusted to 6 months for more data
+start_date = end_date - relativedelta(months=60)  # Adjusted to 6 months for more data
 # Ensure the start date is a weekday (Monday to Friday)
 if start_date.weekday() >= 5:
     start_date += timedelta(days=(7 - start_date.weekday()))
@@ -21,19 +35,106 @@ elif start_date.weekday() == 6:
     start_date += timedelta(days=1)
 print(f"Fetching data for ticker: {ticker}")
 print(f"Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+print(f"Calculation type: {calculation_type}")
 
 # --- 3. Fetch Live Stock Data ---
 try:
     # Download historical stock data from Yahoo Finance
-    stock_data = yf.download(ticker, start=start_date, end=end_date, progress=False)
+    stock_data_downloaded = yf.download(ticker, start=start_date, end=end_date, progress=False)
 
-    if stock_data.empty:
+    if stock_data_downloaded.empty:
         print(f"No data found for stock '{ticker}' in the specified date range.")
         exit()
     else:
         print("Data fetched successfully.")
-        df_input = stock_data[['High', 'Low']].copy()
-        df_input.reset_index(inplace=True)
+        # Data from yf.download has 'Date' as index. Reset index to make 'Date' a column.
+        processed_data = stock_data_downloaded.reset_index()
+        
+        if calculation_type == "weekly" or calculation_type == "monthly":
+            frequency_text = "weekly" if calculation_type == "weekly" else "monthly"
+            print(f"Resampling data to {frequency_text} frequency...")
+            processed_data['Date'] = pd.to_datetime(processed_data['Date'])
+            
+            # Ensure we have High and Low for aggregation
+            high_col = 'High'
+            low_col = 'Low'
+            
+            # Handle MultiIndex columns if present (yfinance sometimes returns these)
+            if isinstance(processed_data.columns, pd.MultiIndex):
+                print("MultiIndex columns detected - adjusting column access")
+                # Find the correct column names for High and Low in a MultiIndex
+                for col in processed_data.columns:
+                    if isinstance(col, tuple) and col[0] == 'High':
+                        high_col = col
+                    if isinstance(col, tuple) and col[0] == 'Low':
+                        low_col = col
+            
+            if high_col not in processed_data.columns or low_col not in processed_data.columns:
+                raise ValueError(f"Downloaded data is missing 'High' or 'Low' columns for {frequency_text} resampling.")
+            
+            # Create appropriate time period identifier for groupby operation
+            if calculation_type == "weekly":
+                # Year-weeknumber for weekly
+                processed_data['TimePeriod'] = processed_data['Date'].dt.strftime('%Y-%U')
+            else:
+                # Year-month for monthly
+                processed_data['TimePeriod'] = processed_data['Date'].dt.strftime('%Y-%m')
+            
+            # Group by time period and calculate high/low
+            period_grouped = processed_data.groupby('TimePeriod')
+            
+            # Create period DataFrame from scratch with explicit columns
+            period_dates = []
+            period_highs = []
+            period_lows = []
+            
+            for time_period, group in period_grouped:
+                dates_sorted = sorted(group['Date'])
+                
+                if calculation_type == "weekly":
+                    # For weekly: try to find Monday, otherwise use first day
+                    reference_date = None
+                    for date in dates_sorted:
+                        if date.weekday() == 0:  # 0 = Monday
+                            reference_date = date
+                            break
+                    
+                    # If no Monday found, use the first date of the week
+                    if reference_date is None and len(dates_sorted) > 0:
+                        reference_date = dates_sorted[0]
+                else:
+                    # For monthly: use the first day of the month
+                    reference_date = dates_sorted[0] if len(dates_sorted) > 0 else None
+                
+                if reference_date is not None:
+                    # Extract the highest high and lowest low for the period
+                    high_value = group[high_col].max()
+                    low_value = group[low_col].min()
+                    
+                    # If the result is a Series (which can happen with MultiIndex), extract the float value
+                    if isinstance(high_value, pd.Series):
+                        high_value = high_value.iloc[0]  # Get the actual float value
+                    if isinstance(low_value, pd.Series):
+                        low_value = low_value.iloc[0]  # Get the actual float value
+                    
+                    period_dates.append(reference_date)
+                    period_highs.append(high_value)
+                    period_lows.append(low_value)
+            
+            # Create period DataFrame with explicit columns
+            df_input = pd.DataFrame({
+                'Date': period_dates,
+                'High': period_highs,
+                'Low': period_lows
+            })
+            
+            print(f"{calculation_type.capitalize()} resampling complete.")
+            print(f"{calculation_type.capitalize()} data sample:")
+            print(df_input.head())
+        else: # Daily
+            # Select necessary columns. 'Date' is already a column from reset_index() above.
+            df_input = processed_data[['Date', 'High', 'Low']].copy()
+            print("Using daily data.")
 
 except Exception as e:
     print(f"An error occurred while fetching stock data: {e}")
@@ -55,7 +156,7 @@ df_final['Date'] = df_input['Date']
 df_final['High'] = df_input['High']
 df_final['Low'] = df_input['Low']
 
-daily_range = df_input['High'] - df_input['Low']
+period_range = df_input['High'] - df_input['Low'] # Renamed from daily_range
 
 # Store the names of the calculated fib columns for later use
 fib_col_names = [float(ratio) for ratio in fib_ratios]
@@ -64,11 +165,11 @@ print("\nCalculating Fibonacci levels with updated logic...")
 for ratio in fib_ratios:
     current_ratio = float(ratio)
     if current_ratio < 0:
-        df_final[current_ratio] = df_input['Low'] + daily_range * current_ratio
+        df_final[current_ratio] = df_input['Low'] + period_range * current_ratio
     elif current_ratio == 0.5:  # Special case for 0.5
-        df_final[current_ratio] = df_input['Low'] + daily_range * current_ratio
+        df_final[current_ratio] = df_input['Low'] + period_range * current_ratio
     else:
-        df_final[current_ratio] = df_input['High'] + daily_range * current_ratio
+        df_final[current_ratio] = df_input['High'] + period_range * current_ratio
 print("Calculations complete.")
 
 # --- 6. Export to Excel with Conditional Formatting ---
@@ -77,11 +178,11 @@ print(f"\nExporting data to '{output_filename}' with highlighting...")
 # Use ExcelWriter with xlsxwriter engine
 with pd.ExcelWriter(output_filename, engine='xlsxwriter', date_format='yyyy-mm-dd') as writer:
     # Write the dataframe without default formatting (we'll apply custom formats)
-    df_final.to_excel(writer, sheet_name='Fibonacci Levels', index=False)
+    df_final.to_excel(writer, sheet_name=sheet_name_excel, index=False)
 
     # Get xlsxwriter workbook and worksheet objects
     workbook = writer.book
-    worksheet = writer.sheets['Fibonacci Levels']
+    worksheet = writer.sheets[sheet_name_excel]
 
     # Define formats
     # Number format string matching the desired decimal places
@@ -165,4 +266,3 @@ with pd.ExcelWriter(output_filename, engine='xlsxwriter', date_format='yyyy-mm-d
 
 
 print(f"\nExcel file '{output_filename}' created successfully with highlighting.")
-

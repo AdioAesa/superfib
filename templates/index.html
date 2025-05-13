@@ -48,6 +48,13 @@
                             <label for="endDate" class="form-label">End Date:</label>
                             <input type="date" class="form-control" id="endDate" name="endDate" required>
                         </div>
+                    </div>                    <div class="mb-3">
+                        <label for="calculationType" class="form-label">Calculation Type:</label>
+                        <select class="form-select" id="calculationType" name="calculationType">
+                            <option value="daily" selected>Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
                     </div>
                     <button type="submit" class="btn btn-primary">Analyze</button>
                 </form>
@@ -101,6 +108,7 @@
             const ticker = document.getElementById('ticker').value;
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
+            const calculationType = document.getElementById('calculationType').value; // Get calculation type
             const loading = document.getElementById('loading');
             const resultCard = document.getElementById('resultCard');
             const errorDiv = document.getElementById('error');
@@ -117,7 +125,7 @@
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `ticker=${encodeURIComponent(ticker)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+                    body: `ticker=${encodeURIComponent(ticker)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&calculationType=${encodeURIComponent(calculationType)}` // Add calculation type to body
                 });
                 
                 const data = await response.json();
