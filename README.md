@@ -11,6 +11,7 @@ SuperFib is a collection of tools for traders that:
 3. Identifies repeated price levels that may act as important support/resistance
 4. Exports data to Excel with conditional formatting
 5. Generates a TradingView Pine Script indicator to visualize these levels on charts
+6. Provides both daily, weekly, and monthly calculation modes
 
 ## Components
 
@@ -84,6 +85,28 @@ Then open your browser to `http://localhost:5000`
 - yfinance
 - xlsxwriter
 - Flask (for web interface)
+- flask-bootstrap5
+
+## Web Application
+
+You can run the web interface locally with:
+
+```bash
+python app.py
+```
+
+Navigate to http://localhost:5000 in your browser to use the application.
+
+## Deploying to Vercel
+
+This application is configured for deployment on Vercel:
+
+1. Sign up for a Vercel account if you don't have one
+2. Install Vercel CLI: `npm i -g vercel`
+3. Login to Vercel: `vercel login`
+4. Deploy: `vercel`
+
+The deployment configuration is set up in `vercel.json`. The web interface will be available at your Vercel URL after deployment.
 
 ## License
 

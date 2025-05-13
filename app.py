@@ -201,4 +201,5 @@ def analyze():
     return jsonify(result)
 
 if __name__ == '__main__':
+    # Use this for local development
     app.run(debug=True)
