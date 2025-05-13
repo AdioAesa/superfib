@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, jsonify
-from flask_bootstrap import Bootstrap5
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -7,7 +6,6 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 app = Flask(__name__)
-bootstrap = Bootstrap5(app)
 
 def calculate_fibonacci_levels(ticker, start_date, end_date, calculation_type="daily"):
     try:
