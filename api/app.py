@@ -7,11 +7,22 @@ from dateutil.relativedelta import relativedelta
 import os
 import sys
 
-# Configure Flask to find templates in the parent directory
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Configure Flask to find templates - more resilient path handling
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
 template_dir = os.path.join(parent_dir, 'templates')
 
-app = Flask(__name__, template_folder=template_dir)
+# Try multiple possible template locations for Vercel serverless environment
+possible_template_dirs = [
+    template_dir,
+    os.path.join(current_dir, 'templates'),
+    os.path.join(os.getcwd(), 'templates')
+]
+
+# Use the first template directory that exists
+template_path = next((path for path in possible_template_dirs if os.path.exists(path)), template_dir)
+
+app = Flask(__name__, template_folder=template_path)
 
 def calculate_fibonacci_levels(ticker, start_date, end_date, calculation_type="daily"):
     try:
