@@ -1,6 +1,6 @@
-Flask==2.2.3
-pandas==2.0.0
-numpy==1.24.3
-yfinance==0.2.61
+Flask==2.3.3
+pandas==2.1.4
+numpy==1.26.3
+yfinance==0.2.35
 python-dateutil==2.8.2
-gunicorn==20.1.0
+gunicorn==21.2.0
