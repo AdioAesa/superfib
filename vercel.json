@@ -14,7 +14,7 @@
   ],
   "functions": {
     "api/index.py": {
-      "includeFiles": ["templates/**", "*.py"]
+      "includeFiles": "templates/**,*.py"
     }
   }
 }
