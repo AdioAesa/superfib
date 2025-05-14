@@ -1,6 +1,6 @@
 Flask==2.3.3
 pandas==2.1.4
 numpy==1.26.3
-yfinance==0.2.35
+yfinance==0.2.61
 python-dateutil==2.8.2
 gunicorn==21.2.0
